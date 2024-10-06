@@ -2,6 +2,7 @@
 title: OpenAI ReAct with Langfuse
 author: Michael Poluektov
 author_url: https://github.com/michaelpoluektov
+git_url: https://github.com/michaelpoluektov/OWUI-ReAct
 description: OpenAI ReAct
 required_open_webui_version: 0.3.15
 requirements: langchain-openai==0.1.25, langgraph, ollama, langchain_ollama==0.1.3
