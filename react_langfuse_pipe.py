@@ -27,6 +27,17 @@ BAD_NAMES = ["202", "13", "3.5", "preview", "chatgpt"]
 EmitterType = Optional[Callable[[dict], Awaitable[None]]]
 
 
+def extract_event_info(event_emitter):
+    if not event_emitter or not event_emitter.__closure__:
+        return None, None
+    for cell in event_emitter.__closure__:
+        if isinstance(request_info := cell.cell_contents, dict):
+            chat_id = request_info.get("chat_id")
+            message_id = request_info.get("message_id")
+            return chat_id, message_id
+    return None, None
+
+
 class SendCitationType(Protocol):
     def __call__(self, url: str, title: str, content: str) -> Awaitable[None]: ...
 
@@ -150,7 +161,9 @@ class Pipe:
         __tools__: dict[str, dict] | None,
         __event_emitter__: Callable[[dict], Awaitable[None]] | None,
     ) -> AsyncGenerator:
-        print(f"{body = }")
+        message_id, chat_id = extract_event_info(__event_emitter__)
+        print(f"{message_id=}")
+        print(f"{chat_id=}")
         print(__task__)
         print(f"{__tools__=}")
         if __task__ == "function_calling":
@@ -173,13 +186,15 @@ class Pipe:
         config = {"callbacks": callbacks}  # type: ignore
 
         if __task__ == "title_generation":
-            content = model.invoke(body["messages"], config=config).content
+            content = model.invoke(body["messages"], config=config).content  # type: ignore
             assert isinstance(content, str)
             yield content
             return
 
         if not __tools__:
-            async for chunk in model.astream(body["messages"], config=config):
+            async for chunk in model.astream(
+                body["messages"], config=config, run_id=message_id
+            ):  # type: ignore
                 content = chunk.content
                 assert isinstance(content, str)
                 yield content
@@ -202,7 +217,11 @@ class Pipe:
         graph = create_react_agent(model, tools=tools)
         inputs = {"messages": body["messages"]}
         num_tool_calls = 0
-        async for event in graph.astream_events(inputs, version="v2", config=config):  # type: ignore
+        async for event in graph.astream_events(
+            inputs,
+            version="v2",
+            config=config | {"run_id": message_id},  # type: ignore
+        ):
             kind = event["event"]
             data = event["data"]
             if kind == "on_chat_model_stream":
