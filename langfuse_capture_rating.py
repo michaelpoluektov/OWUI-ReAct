@@ -1,6 +1,17 @@
 """
-icon_url: data:image/svg+xml,%3Csvg%20stroke%3D%22currentColor%22%20fill%3D%22none%22%20stroke-width%3D%222.3%22%20viewBox%3D%220%200%2024%2024%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20class%3D%22w-4%20h-4%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M14%209V5a3%203%200%200%200-3-3l-4%209v11h11.28a2%202%200%200%200%202-1.7l1.38-9a2%202%200%200%200-2-2.3zM7%2022H4a2%202%200%200%201-2-2v-7a2%202%200%200%201%202-2h3%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E
+title: Langfuse Ratings Action
+author: Michael Poluektov
+author_url: https://github.com/michaelpoluektov
+git_url: https://github.com/michaelpoluektov/OWUI-ReAct
+description: Capture like/dislike events and send them to Langfuse
+required_open_webui_version: 0.3.15
+version: 0.1.0
+licence: MIT
 """
+
+# In order for this to work, you need to make sure the observation ID if you trace
+# is set to the OWUI message ID. In LangChain, this is done by passing the `run_id` argument
+# in the config of invoke. Check the git repo for an example.
 
 import os
 from typing import Optional
@@ -18,6 +29,7 @@ class Action:
             return all(self.__dict__.values())
 
     def __init__(self):
+        self.__webui__ = True
         self.valves = self.Valves(
             **{k: os.getenv(k, v.default) for k, v in self.Valves.model_fields.items()}
         )
@@ -39,6 +51,11 @@ class Action:
             public_key=v.LANGFUSE_PUBLIC_KEY,
             secret_key=v.LANGFUSE_SECRET_KEY,
         )
-        message_id = body.get("id", None)
-        langfuse.score(trace_id=message_id, name="reaction", value=1)
-        print(f"Liked message {message_id}")
+        # Only trigger on like/dislike events
+        event = body.get("event", {})
+        event_id = event.get("id", "")
+        if event_id in ["good-response", "bad-response"]:
+            message_id = event.get("data", {}).get("messageId")
+            score = int(event_id == "good-response")
+            langfuse.score(trace_id=message_id, name="reaction", value=score)
+            print(f"Message ID: {message_id}, {score = }")
