@@ -1,3 +1,18 @@
+"""
+title: Langfuse Ratings Action
+author: Michael Poluektov
+author_url: https://github.com/michaelpoluektov
+git_url: https://github.com/michaelpoluektov/OWUI-ReAct
+description: Capture like/dislike events and send them to Langfuse
+required_open_webui_version: 0.3.15
+version: 0.1.0
+licence: MIT
+"""
+
+# In order for this to work, you need to make sure the observation ID if you trace
+# is set to the OWUI message ID. In LangChain, this is done by passing the `run_id` argument
+# in the config of invoke. Check the git repo for an example.
+
 import os
 from typing import Optional
 from pydantic import BaseModel, Field
