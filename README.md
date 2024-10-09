@@ -1,5 +1,7 @@
 # Open WebUI ReAct agent
 
+A collection of scripts I use for my Open WebUI instance. The main one is `react_langfuse_pipe.py`. Langfuse is _not_ needed for this to work. The other scripts are just Langfuse integrations.
+
 ## `react_langfuse_pipe.py`
 
 If you're not using OpenAI/Ollama/Langfuse just leave their respective valves empty.
