@@ -1,6 +1,6 @@
 # Open WebUI ReAct agent
 
-## `react_agent_langfuse.py`
+## `react_langfuse_pipe.py`
 
 If you're not using OpenAI/Ollama/Langfuse just leave their respective valves empty.
 
