@@ -6,7 +6,7 @@ git_url: https://github.com/michaelpoluektov/OWUI-ReAct
 description: OpenAI ReAct
 required_open_webui_version: 0.3.15
 requirements: langchain-openai==0.1.25, langgraph, ollama, langchain_ollama==0.1.3
-version: 0.3.1
+version: 0.3.3
 licence: MIT
 """
 
@@ -194,8 +194,9 @@ class Pipe:
 
         if not __tools__:
             async for chunk in model.astream(
-                body["messages"], config=config, run_id=message_id
-            ):  # type: ignore
+                body["messages"],
+                config=config | {"run_id": message_id},  # type: ignore
+            ):
                 content = chunk.content
                 assert isinstance(content, str)
                 yield content
