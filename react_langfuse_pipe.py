@@ -4,9 +4,9 @@ author: Michael Poluektov
 author_url: https://github.com/michaelpoluektov
 git_url: https://github.com/michaelpoluektov/OWUI-ReAct
 description: OpenAI ReAct
-required_open_webui_version: 0.3.15
-requirements: langchain-openai==0.1.25, langgraph, ollama, langchain_ollama==0.1.3
-version: 0.3.3
+required_open_webui_version: 0.4.0
+requirements: langchain-openai, langgraph, ollama, langchain_ollama
+version: 0.4.0
 licence: MIT
 """
 
@@ -21,8 +21,6 @@ from langfuse.callback import CallbackHandler
 from langgraph.prebuilt import create_react_agent
 from openai import OpenAI
 from pydantic import BaseModel, Field
-
-BAD_NAMES = ["202", "13", "3.5", "preview", "chatgpt"]
 
 EmitterType = Optional[Callable[[dict], Awaitable[None]]]
 
@@ -92,6 +90,10 @@ class Pipe:
         LANGFUSE_PUBLIC_KEY: str = Field(default="", description="Langfuse public key")
         LANGFUSE_URL: str = Field(default="", description="Langfuse URL")
         MODEL_PREFIX: str = Field(default="ReAct", description="Prefix before model ID")
+        ENABLED_MODELS: str = Field(
+            default="gpt-4o,gpt-4o-mini,gpt-4",
+            description="Enabled models, comma-separated.",
+        )
 
     def __init__(self):
         self.type = "manifold"
@@ -110,9 +112,11 @@ class Pipe:
         if self.openai_kwargs:
             try:
                 openai = OpenAI(**self.openai_kwargs)  # type: ignore
-                oai_models = [m.id for m in openai.models.list().data if "gpt" in m.id]
+                enabled_models = [
+                    m.strip() for m in self.valves.ENABLED_MODELS.split(",")
+                ]
                 oai_models = [
-                    m for m in oai_models if not any(bad in m for bad in BAD_NAMES)
+                    m.id for m in openai.models.list().data if m.id in enabled_models
                 ]
                 models.extend(oai_models)
                 self.model_sources |= {m: "openai" for m in oai_models}
@@ -162,11 +166,7 @@ class Pipe:
         __tools__: dict[str, dict] | None,
         __event_emitter__: Callable[[dict], Awaitable[None]] | None,
     ) -> AsyncGenerator:
-        message_id, chat_id = extract_event_info(__event_emitter__)
-        print(f"{message_id=}")
-        print(f"{chat_id=}")
-        print(__task__)
-        print(f"{__tools__=}")
+        message_id, _ = extract_event_info(__event_emitter__)
         if __task__ == "function_calling":
             return
 
@@ -219,6 +219,7 @@ class Pipe:
         graph = create_react_agent(model, tools=tools)
         inputs = {"messages": body["messages"]}
         num_tool_calls = 0
+        started_tools = set()
         async for event in graph.astream_events(
             inputs,
             version="v2",
@@ -231,14 +232,18 @@ class Pipe:
                     yield content
             elif kind == "on_tool_start":
                 yield "\n"
-                await send_status(f"Running tool {event['name']}", False)
+                name = event["name"]
+                await send_status(f"Running tool {name}", False)
+                started_tools.add(name)
             elif kind == "on_tool_end":
                 num_tool_calls += 1
-                await send_status(
-                    f"Tool '{event['name']}' returned {data.get('output')}", True
-                )
+                name = event["name"]
+                await send_status(f"Tool '{name}' returned {data.get('output')}", True)
                 await send_citation(
                     url=f"Tool call {num_tool_calls}",
-                    title=event["name"],
-                    content=f"Tool '{event['name']}' with inputs {data.get('input')} returned {data.get('output')}",
+                    title=name,
+                    content=f"Tool '{name}' with inputs {data.get('input')} returned {data.get('output')}",
                 )
+                started_tools.remove(name)
+        for name in started_tools:
+            await send_status(f"Tool '{name}' failed.", True)
