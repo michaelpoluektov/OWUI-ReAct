@@ -4,9 +4,9 @@ author: Michael Poluektov
 author_url: https://github.com/michaelpoluektov
 git_url: https://github.com/michaelpoluektov/OWUI-ReAct
 description: OpenAI ReAct
-required_open_webui_version: 0.4.0
+required_open_webui_version: 0.4.3
 requirements: langchain-openai, langgraph, ollama, langchain_ollama
-version: 0.4.0
+version: 0.4.1
 licence: MIT
 """
 
@@ -50,7 +50,7 @@ def get_send_citation(__event_emitter__: EmitterType) -> SendCitationType:
             return
         await __event_emitter__(
             {
-                "type": "citation",
+                "type": "source",
                 "data": {
                     "document": [content],
                     "metadata": [{"source": url, "html": False}],
