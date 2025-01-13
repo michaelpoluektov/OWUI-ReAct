@@ -125,7 +125,7 @@ class Pipe:
         if self.ollama_kwargs:
             try:
                 client = ollama.Client(host=self.valves.OLLAMA_URL)
-                ollama_models = [m["name"] for m in client.list()["models"]]
+                ollama_models = [(m.get("name") or m.get("model")) for m in client.list()["models"]]
                 models.extend(ollama_models)
                 self.model_sources |= {m: "ollama" for m in ollama_models}
             except Exception as e:
